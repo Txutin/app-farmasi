@@ -6,42 +6,38 @@ import io
 st.set_page_config(page_title="Gestión Farmasi 3.0", layout="wide")
 st.title("💄 Gestión Farmasi - COMPRAS")
 
-# 1. Variables limpias (Sin errores de pegado)
-SHEET_ID = "1Cy4K3ddIM7Z4hproTb9b-tFW39gSYjKA2XmSb-_65YA"
-GID = "578329158"
+# URL TOTALMENTE ESTÁTICA (Sin sumas ni variables para evitar el error de pegado)
+url_final = "https://docs.google.com"
 
-# 2. Construcción manual de la URL para evitar que se junten (Ojo a la '/' extra)
-url_limpia = "https://docs.google.com" + SHEET_ID + "/export?format=csv&gid=" + GID
-
-def cargar_datos_seguros():
+def cargar_datos():
     try:
-        # Petición directa con timeout para no dejar colgada la web
-        response = requests.get(url_limpia, timeout=10)
-        # Si la respuesta es exitosa (200), leemos el contenido
+        # Usamos un timeout corto para que no se quede colgado
+        response = requests.get(url_final, timeout=10)
         if response.status_code == 200:
             return pd.read_csv(io.StringIO(response.text))
         else:
-            return f"Error de Google: {response.status_code}. Revisa si la hoja es pública."
+            return f"Error de Google: {response.status_code}. Verifica que el Sheet sea Público."
     except Exception as e:
-        return f"Error de conexión: {str(e)}"
+        return f"Error de red: {str(e)}"
 
-# 3. Mostrar datos
-df = cargar_datos_seguros()
+# Intentar cargar
+df = cargar_datos()
 
 if isinstance(df, pd.DataFrame):
     st.success("✅ ¡CONECTADO POR FIN!")
     
     # Buscador rápido
-    busqueda = st.text_input("🔍 Buscar registro:")
+    busqueda = st.text_input("🔍 Filtrar registros:", placeholder="Escribe para buscar...")
     if busqueda:
         mask = df.astype(str).apply(lambda x: x.str.contains(busqueda, case=False, na=False)).any(axis=1)
         st.dataframe(df[mask], use_container_width=True)
     else:
         st.dataframe(df, use_container_width=True)
 else:
-    st.error("🚨 Sigue habiendo un problema con la URL")
-    st.code(url_limpia) # Esto nos permite ver si la URL es correcta en pantalla
+    st.error("🚨 Problema con la conexión")
+    st.info("La URL que estamos usando es:")
+    st.code(url_final)
     st.warning(df)
 
-if st.button("🔄 Forzar Recarga"):
+if st.button("🔄 Refrescar"):
     st.rerun()
