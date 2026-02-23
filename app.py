@@ -4,31 +4,39 @@ import pandas as pd
 st.set_page_config(page_title="Gestión Farmasi 3.0", layout="wide")
 st.title("💄 Gestión Farmasi - COMPRAS")
 
-# URL construida pieza a pieza para evitar errores de caracteres
+# Intentamos con la URL de "publicación web" que es más ligera para los servidores
+# He extraído el ID de tu hoja directamente
 SHEET_ID = "1Cy4K3ddIM7Z4hproTb9b-tFW39gSYjKA2XmSb-_65YA"
 GID = "578329158"
-url = f"https://docs.google.com{SHEET_ID}/export?format=csv&gid={GID}"
 
-try:
-    # Intentamos la carga sin caché para diagnosticar
-    df = pd.read_csv(url, on_bad_lines='skip')
+# Esta estructura de URL suele saltarse los errores de "Name or service not known"
+url = f"https://docs.google.com{SHEET_ID}/pub?gid={GID}&output=csv"
+
+@st.cache_data(ttl=10)
+def cargar_datos_emergencia():
+    try:
+        # Forzamos la lectura con un motor diferente (python) para mayor compatibilidad
+        df = pd.read_csv(url, engine='python', on_bad_lines='skip')
+        return df
+    except Exception as e:
+        return str(e)
+
+data = cargar_datos_emergencia()
+
+if isinstance(data, pd.DataFrame):
+    st.success("✅ ¡Conexión recuperada con éxito!")
     
-    st.success("✨ Conexión recuperada")
-    
-    # Buscador
-    busqueda = st.text_input("🔍 Buscar en registros:", placeholder="Escribe para filtrar...")
-    
+    busqueda = st.text_input("🔍 Buscar registro:")
     if busqueda:
-        mask = df.astype(str).apply(lambda x: x.str.contains(busqueda, case=False, na=False)).any(axis=1)
-        st.dataframe(df[mask], use_container_width=True)
+        mask = data.astype(str).apply(lambda x: x.str.contains(busqueda, case=False, na=False)).any(axis=1)
+        st.dataframe(data[mask], use_container_width=True)
     else:
-        st.dataframe(df, use_container_width=True)
+        st.dataframe(data, use_container_width=True)
+else:
+    st.error("⚠️ El servidor de Streamlit sigue sin ver a Google.")
+    st.code(data)
+    st.info("Paso final: Ve a tu Excel -> Archivo -> Compartir -> Publicar en la web -> Pulsa el botón 'Publicar'.")
 
-except Exception as e:
-    st.error("❌ Error de red o URL")
-    st.warning("El servidor no encuentra la dirección de Google Sheets.")
-    st.code(str(e))
-    
-    # Botón de auxilio
-    if st.button("🔌 Reintentar Conexión"):
-        st.rerun()
+if st.button("♻️ Forzar Reintento"):
+    st.cache_data.clear()
+    st.rerun()
