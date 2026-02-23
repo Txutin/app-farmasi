@@ -1,47 +1,51 @@
 import streamlit as st
 import pandas as pd
-import requests
-import io
 
+# 1. Configuración de la interfaz (Siempre lo primero)
 st.set_page_config(page_title="Gestión Farmasi 4.0", layout="wide")
-st.title("💄 Gestión Farmasi 4.0 - COMPRAS")
+st.title("💄 Gestión Farmasi 4.0 - PANEL DE CONTROL")
 
-# --- URL CORREGIDA MANUALMENTE (SIN VARIABLES PARA EVITAR EL ERROR DE PEGADO) ---
-# He usado el ID que salía en tu error: 1sVaeJDe_feAMiuL9ct7rGUS18Vy9vEipPXqHlw0MnPU
-url_final = "https://docs.google.com"
+# --- TU ENLACE DE PUBLICACIÓN CSV (EL QUE ME ACABAS DE DAR) ---
+URL_PUB = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSlBHB_vd1Dz_X1Ngor981-ySiL-Gwp__QxTxxHrNEL78aOEHbcIRPdAZriu5UKMedN9zcTyplwqYnd/pub?gid=0&single=true&output=csv"
 
-def cargar_datos():
+@st.cache_data(ttl=10) # Refresco automático cada 10 segundos
+def cargar_datos_publicos():
     try:
-        # Petición directa con cabecera de navegador
-        headers = {"User-Agent": "Mozilla/5.0"}
-        response = requests.get(url_final, headers=headers, timeout=10)
-        
-        if response.status_code == 200:
-            # Leemos el CSV forzando todo a texto para no perder ceros
-            return pd.read_csv(io.StringIO(response.text), dtype=str)
-        else:
-            return f"Error Google: {response.status_code}. Revisa si la pestaña se llama COMPRAS."
+        # Cargamos los datos forzando todo a texto para no perder los ceros de los códigos
+        df = pd.read_csv(URL_PUB, dtype=str, on_bad_lines='skip', engine='python')
+        # Limpiamos posibles filas o columnas vacías que añade Google al publicar
+        df = df.dropna(how='all', axis=0).dropna(how='all', axis=1)
+        return df
     except Exception as e:
-        return f"Fallo de red: {str(e)}"
+        return f"Error al leer el CSV: {e}"
 
-# Ejecución
-df = cargar_datos()
+# 2. Ejecución de la carga
+df = cargar_datos_publicos()
 
 if isinstance(df, pd.DataFrame):
-    st.success("✨ ¡CONEXIÓN ESTABLECIDA! Farmasi 4.0 está en línea.")
+    st.success(f"🚀 ¡CONECTADO! Se han detectado {len(df)} registros en Farmasi 4.0")
     
-    # Buscador funcional
-    busqueda = st.text_input("🔍 Buscar en COMPRAS (Factura, Producto, Código...):")
+    # Buscador Inteligente
+    busqueda = st.text_input("🔍 Buscar por FACTURA, PRODUCTO o CÓDIGO:", placeholder="Escribe algo para filtrar...")
+    
     if busqueda:
+        # Filtro global en todas las columnas
         mask = df.astype(str).apply(lambda x: x.str.contains(busqueda, case=False, na=False)).any(axis=1)
         st.dataframe(df[mask], use_container_width=True)
     else:
+        # Vista de la tabla completa si no hay búsqueda
         st.dataframe(df, use_container_width=True)
+    
+    # Si la tabla está vacía, damos instrucciones
+    if df.empty:
+        st.info("La tabla está conectada pero no tiene datos. Escribe tus encabezados en el Google Sheet.")
+        st.write("Headers esperados:", ["ORDEN_NO", "FACTURA_NO", "FECHA_FACTURA", "DESCRIPCION", "TOTAL..."])
+
 else:
-    st.error("🚨 Sigue habiendo un problema de conexión")
-    st.info("La URL que está intentando usar el servidor es:")
-    st.code(url_final)
+    st.error("🚨 Error crítico de conexión")
     st.warning(df)
 
-if st.button("🔄 Forzar Actualización"):
+# Botón manual de refresco
+if st.button("🔄 Forzar Sincronización"):
+    st.cache_data.clear()
     st.rerun()
