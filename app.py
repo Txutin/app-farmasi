@@ -1,38 +1,35 @@
 import streamlit as st
 import pandas as pd
 
-# Configuración visual
-st.set_page_config(page_title="Farmasi App", layout="centered")
-st.title("💄 Gestión Farmasi")
+# 1. Configuración de la página
+st.set_page_config(page_title="App Farmasi 3.0", layout="wide")
+st.title("💄 Gestión Farmasi 3.0")
 
-# URL Directa de descarga (Formato CSV)
-# Hemos unido el ID y el GID en un solo enlace limpio
+# 2. Tu llave de conexión (La URL que creamos arriba)
 url = "https://docs.google.com"
 
-@st.cache_data(ttl=60) # Se refresca cada minuto
-def load_data():
+@st.cache_data(ttl=60)
+def cargar_datos():
+    # Cargamos el CSV directamente desde Google
     return pd.read_csv(url)
 
+# 3. Lógica de la aplicación
 try:
-    df = load_data()
-    st.success("✨ ¡Conexión establecida con Farmasi!")
+    df = cargar_datos()
+    st.success("✨ ¡Conexión con el inventario exitosa!")
     
-    # Buscador amigable
-    busqueda = st.text_input("🔍 ¿Qué producto buscas?", placeholder="Ej: Labial, Crema...")
+    # Buscador por descripción o código
+    busqueda = st.text_input("🔍 Buscar producto (nombre o código):")
     
     if busqueda:
-        # Filtro inteligente
-        mask = df.astype(str).apply(lambda x: x.str.contains(busqueda, case=False)).any(axis=1)
-        resultado = df[mask]
+        # Filtramos en todas las columnas
+        resultado = df[df.astype(str).apply(lambda x: x.str.contains(busqueda, case=False)).any(axis=1)]
+        st.write(f"Resultados para: **{busqueda}**")
         st.dataframe(resultado, use_container_width=True)
     else:
-        st.write("### 📦 Inventario Actual")
+        st.write("### 📦 Lista completa de productos")
         st.dataframe(df, use_container_width=True)
 
 except Exception as e:
-    st.error("⚠️ Error de conexión temporal")
-    st.info("Pulsa la tecla 'R' para reintentar la conexión con Google Sheets.")
-    # Botón de reintento manual
-    if st.button("🔄 Reintentar ahora"):
-        st.cache_data.clear()
-        st.rerun()
+    st.error("⚠️ No se pudo conectar con la hoja de cálculo.")
+    st.info("Revisa que el archivo de Google Sheets tenga datos y columnas con nombre.")
