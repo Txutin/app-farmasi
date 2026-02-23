@@ -3,58 +3,45 @@ import pandas as pd
 import requests
 import io
 
-# 1. Configuración de la interfaz
 st.set_page_config(page_title="Gestión Farmasi 4.0", layout="wide")
 st.title("💄 Gestión Farmasi 4.0 - COMPRAS")
 
-# --- PASO ÚNICO: PEGA AQUÍ EL ID DE TU NUEVO SHEET "FARMASI 4.0" ---
-ID_SHEET = "1SVAEjde_feAmiul9Ct7rguS18Vy9VeiPPxQHlw0mNpU" 
-# -----------------------------------------------------------------
+# --- URL CORREGIDA MANUALMENTE (SIN VARIABLES PARA EVITAR EL ERROR DE PEGADO) ---
+# He usado el ID que salía en tu error: 1sVaeJDe_feAMiuL9ct7rGUS18Vy9vEipPXqHlw0MnPU
+url_final = "https://docs.google.com"
 
-# URL para buscar la pestaña "COMPRAS" específicamente
-url_compras = f"https://docs.google.com{ID_SHEET}/gviz/tq?tqx=out:csv&sheet=COMPRAS"
-
-@st.cache_data(ttl=5) # Refresco ultra rápido
-def cargar_farmasi_4_0():
+def cargar_datos():
     try:
-        # Usamos headers para evitar bloqueos de seguridad de Google
+        # Petición directa con cabecera de navegador
         headers = {"User-Agent": "Mozilla/5.0"}
-        response = requests.get(url_compras, headers=headers, timeout=10)
+        response = requests.get(url_final, headers=headers, timeout=10)
         
         if response.status_code == 200:
-            # Forzamos dtype=str para no perder los ceros en códigos de barras
-            df = pd.read_csv(io.StringIO(response.text), dtype=str)
-            return df
+            # Leemos el CSV forzando todo a texto para no perder ceros
+            return pd.read_csv(io.StringIO(response.text), dtype=str)
         else:
-            return f"Error {response.status_code}: Revisa que el Sheet sea 'Público - Lector' y la pestaña se llame COMPRAS."
+            return f"Error Google: {response.status_code}. Revisa si la pestaña se llama COMPRAS."
     except Exception as e:
-        return f"Fallo de red: {e}"
+        return f"Fallo de red: {str(e)}"
 
 # Ejecución
-df = cargar_farmasi_4_0()
+df = cargar_datos()
 
 if isinstance(df, pd.DataFrame):
-    # Verificamos si los headers coinciden para avisarte si falta algo
-    headers_esperados = ["ORDEN_NO", "FACTURA_NO", "FECHA_FACTURA", "DESCRIPCION", "TOTAL"]
-    headers_reales = df.columns.tolist()
+    st.success("✨ ¡CONEXIÓN ESTABLECIDA! Farmasi 4.0 está en línea.")
     
-    st.success(f"✅ Conectado a FARMASI 4.0 | Pestaña: COMPRAS")
-    
-    # Buscador potente
-    busqueda = st.text_input("🔍 Buscar en registros (Factura, Producto, Código...):")
-    
+    # Buscador funcional
+    busqueda = st.text_input("🔍 Buscar en COMPRAS (Factura, Producto, Código...):")
     if busqueda:
         mask = df.astype(str).apply(lambda x: x.str.contains(busqueda, case=False, na=False)).any(axis=1)
         st.dataframe(df[mask], use_container_width=True)
     else:
         st.dataframe(df, use_container_width=True)
-        
-    if df.empty:
-        st.info("💡 La conexión es correcta, pero la hoja está vacía. Añade datos en Google Sheets para verlos aquí.")
-
 else:
-    st.error("🚨 No se pudo conectar")
+    st.error("🚨 Sigue habiendo un problema de conexión")
+    st.info("La URL que está intentando usar el servidor es:")
+    st.code(url_final)
     st.warning(df)
-    if st.button("🔄 Reintentar conexión"):
-        st.cache_data.clear()
-        st.rerun()
+
+if st.button("🔄 Forzar Actualización"):
+    st.rerun()
