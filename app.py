@@ -7,7 +7,7 @@ st.set_page_config(page_title="Farmasi App", layout="centered")
 st.title("💄 Gestión Farmasi")
 
 # 2. Conexión con Google Sheets (enlace en formato export csv)
-sheet_id = "TU_ID_DE_HOJA_AQUÍ"
+sheet_id = "1Cy4K3ddIM7Z4hproTb9b-tFW39gSYjKA2XmSb-_65YA"
 url = f"https://docs.google.com{sheet_id}/export?format=csv"
 
 @st.cache_data
@@ -25,3 +25,4 @@ busqueda = st.text_input("Buscar producto:")
 if busqueda:
     resultado = df[df.astype(str).apply(lambda x: x.str.contains(busqueda, case=False)).any(axis=1)]
     st.write(resultado)
+
