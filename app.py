@@ -5,38 +5,37 @@ import pandas as pd
 st.set_page_config(page_title="Gestión Farmasi 3.0", layout="wide")
 st.title("💄 Gestión Farmasi 3.0")
 
-# 2. URL de conexión (Pestaña IMPORT_AI)
+# 2. Conexión limpia a la pestaña IMPORT_AI
 url = "https://docs.google.com"
 
 @st.cache_data(ttl=60)
 def cargar_datos():
-    # Usamos on_bad_lines='skip' para que no explote si hay filas raras
-    # Y low_memory=False para manejar hojas grandes de Farmasi
-    return pd.read_csv(url, on_bad_lines='skip', low_memory=False)
+    # Leemos todo como texto (dtype=str) para evitar errores de formato
+    # y limitamos a las primeras 20 columnas para que no se pierda en el infinito
+    return pd.read_csv(url, dtype=str, on_bad_lines='skip', usecols=range(0, 15))
 
-# 3. Lógica para mostrar los datos
+# 3. Mostrar los datos
 try:
     df = cargar_datos()
     
-    # Limpiamos columnas totalmente vacías que suelen causar el error
-    df = df.dropna(axis=1, how='all')
+    # Eliminamos filas que estén totalmente vacías
+    df = df.dropna(how='all')
     
-    st.success("✨ ¡Inventario de Farmasi cargado con éxito!")
+    st.success("✨ ¡Inventario cargado! (Filas procesadas correctamente)")
     
-    # Buscador potente
-    busqueda = st.text_input("🔍 ¿Qué estás buscando?", placeholder="Escribe el nombre del producto, orden o cliente...")
+    # Buscador amigable
+    busqueda = st.text_input("🔍 Buscar producto o cliente:", placeholder="Escribe aquí...")
     
     if busqueda:
-        # Filtro que busca en todo el documento
         mask = df.astype(str).apply(lambda x: x.str.contains(busqueda, case=False)).any(axis=1)
         st.dataframe(df[mask], use_container_width=True)
     else:
-        st.write("### 📦 Vista general de la hoja")
+        st.write("### 📦 Vista de tus datos")
         st.dataframe(df, use_container_width=True)
 
 except Exception as e:
-    st.error(f"⚠️ Error al procesar los datos: {e}")
-    st.info("Prueba a pulsar el botón de abajo para refrescar la memoria de la app.")
-    if st.button("🔄 Forzar Recarga de Datos"):
+    st.error(f"⚠️ Error al organizar los datos: {e}")
+    st.info("Esto sucede si la hoja tiene celdas combinadas o formatos muy complejos.")
+    if st.button("🔄 Limpiar Memoria y Reintentar"):
         st.cache_data.clear()
         st.rerun()
